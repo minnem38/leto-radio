@@ -3,39 +3,49 @@
 Leto Radio - Stream Server
 Serves the current song as a continuous stream at /stream
 Also exposes /queue and /nowplaying as JSON for the web UI
+Serves the web UI at /
 """
 
 import os
-import json
 import time
 import threading
 from pathlib import Path
-from flask import Flask, Response, jsonify, stream_with_context
+from flask import Flask, Response, jsonify, send_from_directory
+
 from queue_manager import QueueManager
 
 app = Flask(__name__)
 queue = QueueManager()
 
-# --- Streaming state ---
-current_song = {"info": None, "start_time": None}
+WEB_DIR = Path(__file__).parent / "web"
+
+# --- Shared stream state ---
+# All listeners read from the same in-memory buffer so everyone
+# hears the same thing at the same time.
 stream_lock = threading.Lock()
+current_song = {"info": None, "start_time": None}
+stream_buffer = []
+stream_buffer_lock = threading.Lock()
+stream_done = threading.Event()
 
 
-def song_generator():
-    """Generator that streams the current song, then moves to the next."""
-    chunk_size = 4096
+def stream_loader():
+    """
+    Background thread — loads the current song into stream_buffer
+    chunk by chunk, then advances the queue when done.
+    """
+    global stream_buffer
 
     while True:
         song = queue.get_current()
 
         if not song:
-            # Nothing in queue — send silence (empty bytes) and wait
             time.sleep(1)
-            yield b""
             continue
 
         filepath = song.get("filepath")
         if not filepath or not Path(filepath).exists():
+            print(f"[loader] File missing: {filepath}, skipping.")
             queue.advance()
             continue
 
@@ -43,30 +53,68 @@ def song_generator():
             current_song["info"] = song
             current_song["start_time"] = time.time()
 
-        print(f"[stream] Now playing: {song.get('title', 'Unknown')}")
+        print(f"[loader] Now playing: {song.get('title', 'Unknown')}")
+
+        with stream_buffer_lock:
+            stream_buffer = []
+            stream_done.clear()
 
         try:
             with open(filepath, "rb") as f:
                 while True:
-                    chunk = f.read(chunk_size)
+                    chunk = f.read(4096)
                     if not chunk:
                         break
-                    yield chunk
-        except GeneratorExit:
-            return
+                    with stream_buffer_lock:
+                        stream_buffer.append(chunk)
+                    time.sleep(0.01)
         except Exception as e:
-            print(f"[stream] Error reading file: {e}")
+            print(f"[loader] Error reading file: {e}")
 
-        # Song finished — advance queue
+        stream_done.set()
         queue.advance()
         time.sleep(0.1)
+
+
+# Start background loader thread
+loader_thread = threading.Thread(target=stream_loader, daemon=True)
+loader_thread.start()
+
+
+def listener_generator():
+    """
+    Generator for each connected listener.
+    Reads from the shared stream_buffer as chunks arrive.
+    """
+    index = 0
+    while True:
+        with stream_buffer_lock:
+            available = len(stream_buffer)
+
+        if index < available:
+            with stream_buffer_lock:
+                chunk = stream_buffer[index]
+            yield chunk
+            index += 1
+        elif stream_done.is_set() and index >= available:
+            # Song finished, wait for next
+            index = 0
+            time.sleep(0.5)
+        else:
+            time.sleep(0.05)
+
+
+@app.route("/")
+def index():
+    """Serves the now-playing web UI."""
+    return send_from_directory(WEB_DIR, "index.html")
 
 
 @app.route("/stream")
 def stream():
     """The main stream endpoint — point your Etched disc here."""
     return Response(
-        stream_with_context(song_generator()),
+        listener_generator(),
         mimetype="audio/mpeg",
         headers={
             "Cache-Control": "no-cache, no-store",
@@ -104,7 +152,7 @@ def get_queue():
 
 @app.route("/skip", methods=["POST"])
 def skip():
-    """Skips the current song (admin use)."""
+    """Skips the current song."""
     queue.advance()
     return jsonify({"status": "skipped"})
 
