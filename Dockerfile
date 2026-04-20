@@ -1,9 +1,9 @@
 FROM python:3.12-slim
 
-# Install yt-dlp dependency (ffmpeg for audio conversion)
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     curl \
+    nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Install yt-dlp
@@ -17,5 +17,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Create data directories
 RUN mkdir -p /data/music /data/queue
