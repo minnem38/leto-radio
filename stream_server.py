@@ -86,6 +86,8 @@ def stream():
         CURRENT_FILE,
         mimetype="audio/mpeg",
         conditional=False,
+        as_attachment=True,
+        download_name="current.mp3",
     )
 
 
