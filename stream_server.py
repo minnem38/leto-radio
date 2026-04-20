@@ -76,6 +76,7 @@ def index():
 
 
 @app.route("/stream")
+@app.route("/stream.mp3")
 def stream():
     """Serves the current song as a static MP3 file."""
     if not CURRENT_FILE.exists():
