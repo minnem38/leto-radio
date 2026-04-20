@@ -1,0 +1,16 @@
+# Environment - NEVER commit this
+.env
+
+# Downloaded music files
+music/
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Docker
+*.log
