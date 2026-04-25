@@ -1,4 +1,4 @@
-# 🎵 Minecraft Radio Bot
+# 🎵 Leto Radio Bot
 
 A Discord bot that converts YouTube, SoundCloud, and direct audio links into streamable URLs for Minecraft radio mods. Files auto-delete after 1 hour.
 
@@ -19,11 +19,7 @@ Paste into Minecraft radio mod → profit 🎶
 ```
 
 ## Compatible Minecraft mods
-
-- **Simple Voice Chat** (radio addon)
-- **Phonograph**
-- **Immersive Engineering** (radio)
-- **Valhelsia Radio**
+- ** Etched **
 - Any mod that accepts a direct HTTP audio URL
 
 ## Supported link types
