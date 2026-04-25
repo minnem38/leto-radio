@@ -3,7 +3,8 @@ services:
   # ── Discord bot ──────────────────────────────────────────────────────────────
   bot:
     build: ./bot
-    container_name: radio-bot
+    image: ghcr.io/minnem38/leto-radio:latest
+    container_name: leto-radio-bot
     restart: unless-stopped
     environment:
       DISCORD_TOKEN: ${DISCORD_TOKEN}
@@ -18,10 +19,10 @@ services:
     networks:
       - radio
 
-  # ── Static file server (nginx) ───────────────────────────────────────────────
+  # ── Audio file server ────────────────────────────────────────────────────────
   fileserver:
     image: nginx:1.27-alpine
-    container_name: radio-fileserver
+    container_name: leto-radio-fileserver
     restart: unless-stopped
     volumes:
       - audio_files:/audio:ro

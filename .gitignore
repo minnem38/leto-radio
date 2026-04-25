@@ -1,4 +1,4 @@
-# Environment / secrets — NEVER commit this
+# Secrets — never commit
 .env
 
 # Python
@@ -13,9 +13,6 @@ venv/
 *.ogg
 *.wav
 *.flac
-
-# Docker
-.dockerignore
 
 # OS
 .DS_Store
