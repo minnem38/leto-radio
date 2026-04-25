@@ -1,0 +1,64 @@
+# ============================================================
+# docker-compose.portainer.yml
+# Use this in Portainer's "Web editor" — no build needed.
+# Replace YOUR_GITHUB_USERNAME with your actual GitHub username.
+# Set environment variables in Portainer's env section.
+# ============================================================
+
+services:
+
+  # ── Discord bot (pre-built image from GitHub Container Registry) ─────────────
+  bot:
+    image: ghcr.io/YOUR_GITHUB_USERNAME/minecraft-radio-bot:latest
+    container_name: radio-bot
+    restart: unless-stopped
+    environment:
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID}
+      PUBLIC_URL: ${PUBLIC_URL}
+      FILE_TTL_SECONDS: ${FILE_TTL_SECONDS:-3600}
+      AUDIO_DIR: /audio
+    volumes:
+      - audio_files:/audio
+    depends_on:
+      - fileserver
+    networks:
+      - radio
+
+  # ── File server (inline nginx config via command) ────────────────────────────
+  fileserver:
+    image: nginx:1.27-alpine
+    container_name: radio-fileserver
+    restart: unless-stopped
+    ports:
+      - "${FILESERVER_PORT:-8765}:80"
+    volumes:
+      - audio_files:/audio:ro
+    # Inline nginx config — no external file needed
+    command: >
+      sh -c "cat > /etc/nginx/conf.d/default.conf << 'EOF'
+      server {
+        listen 80;
+        server_name _;
+        location /audio/ {
+          alias /audio/;
+          add_header Accept-Ranges bytes;
+          add_header Cache-Control no-store;
+          add_header Access-Control-Allow-Origin *;
+          types { audio/mpeg mp3; audio/ogg ogg; audio/wav wav; }
+          autoindex off;
+        }
+        location /health { return 200 ok; add_header Content-Type text/plain; }
+        location / { return 404; }
+      }
+      EOF
+      nginx -g 'daemon off;'"
+    networks:
+      - radio
+
+volumes:
+  audio_files:
+
+networks:
+  radio:
+    driver: bridge

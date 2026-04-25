@@ -1,0 +1,22 @@
+# Environment / secrets — NEVER commit this
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Audio files
+*.mp3
+*.ogg
+*.wav
+*.flac
+
+# Docker
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
